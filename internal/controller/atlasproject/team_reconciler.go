@@ -82,11 +82,11 @@ func (r *AtlasProjectReconciler) teamReconcile(team *akov2.AtlasTeam, workflowCt
 
 		teamCtx.EnsureStatusOption(status.AtlasTeamSetID(teamID))
 
-		result = r.ensureTeamUsersAreInSync(teamCtx, teamsService, teamID, team)
-		if !result.IsOk() {
-			teamCtx.SetConditionFromResult(api.ReadyType, result)
-			return result.ReconcileResult()
-		}
+		//result = r.ensureTeamUsersAreInSync(teamCtx, teamsService, teamID, team)
+		//if !result.IsOk() {
+		//	teamCtx.SetConditionFromResult(api.ReadyType, result)
+		//	return result.ReconcileResult()
+		//}
 
 		if team.GetDeletionTimestamp().IsZero() {
 			if len(team.Status.Projects) > 0 {
