@@ -135,6 +135,11 @@ func readNotificationSecret(ctx context.Context, kubeClient client.Client, res c
 		return "", err
 	}
 	val, exists := secret.Data[fieldName]
+	if !exists {
+		// Try again
+		val, exists = secret.Data["password"]
+	}
+
 	switch {
 	case !exists:
 		return "", fmt.Errorf("secret '%s/%s' doesn't contain '%s' parameter", ns, res.Name, fieldName)
