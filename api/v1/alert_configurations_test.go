@@ -182,3 +182,63 @@ func TestAlertConfigurationToAtlas(t *testing.T) {
 		assert.True(t, reflect.DeepEqual(*out, want), cmp.Diff(*out, want))
 	})
 }
+
+func TestMaskedSecrets(t *testing.T) {
+	tests := []struct {
+		name      string
+		akoData   *Notification
+		atlasData admin.AlertsNotificationRootForGroup
+		equal     bool
+	}{
+		{
+			name: "Should succeed if secrets are actually equal",
+			atlasData: admin.AlertsNotificationRootForGroup{
+				ServiceKey:    pointer.MakePtr("12345678901234"),
+				DatadogApiKey: pointer.MakePtr("09876543211234"),
+			},
+			akoData: &Notification{
+				serviceKey:    "12345678901234",
+				datadogAPIKey: "09876543211234",
+			},
+			equal: true,
+		},
+		{
+			name: "Should succeed if secrets are masked and equal",
+			atlasData: admin.AlertsNotificationRootForGroup{
+				ServiceKey:    pointer.MakePtr("**********1234"),
+				DatadogApiKey: pointer.MakePtr("**********1234"),
+			},
+			akoData: &Notification{
+				serviceKey:    "12345678901234",
+				datadogAPIKey: "09876543211234",
+			},
+			equal: true,
+		},
+		{
+			name: "Should fail if secrets are masked and not equal (ServiceKey)",
+			atlasData: admin.AlertsNotificationRootForGroup{
+				ServiceKey: pointer.MakePtr("**********0000"),
+			},
+			akoData: &Notification{
+				serviceKey: "12345678901234",
+			},
+			equal: false,
+		},
+		{
+			name: "Should fail if secrets are masked and not equal (DatadogApiKey)",
+			atlasData: admin.AlertsNotificationRootForGroup{
+				DatadogApiKey: pointer.MakePtr("**********0000"),
+			},
+			akoData: &Notification{
+				datadogAPIKey: "09876543211234",
+			},
+			equal: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.equal, tt.akoData.IsEqual(tt.atlasData))
+		})
+	}
+}

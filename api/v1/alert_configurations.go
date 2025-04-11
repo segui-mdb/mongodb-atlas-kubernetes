@@ -47,6 +47,19 @@ type AlertConfiguration struct {
 	SeverityOverride string `json:"severityOverride,omitempty"`
 }
 
+// secretEqualsAtlas returns whether the given local secret *likely* matches the
+// given secret which is returned by Atlas and possibly masked.
+func secretEqualsAtlas(ours string, theirs string) bool {
+	if ours == theirs {
+		return true
+	}
+	if len(ours) != len(theirs) {
+		return false
+	}
+	masked := strings.Repeat("*", len(ours)-4) + ours[len(ours)-4:]
+	return masked == theirs
+}
+
 func (in AlertConfiguration) Key() string {
 	return strconv.FormatBool(in.Enabled) +
 		in.EventTypeName + "|" +
@@ -306,25 +319,25 @@ func (in *Notification) IsEqual(notification admin.AlertsNotificationRootForGrou
 	if in == nil {
 		return false
 	}
-	if in.apiToken != notification.GetApiToken() ||
+	if !secretEqualsAtlas(in.apiToken, notification.GetApiToken()) ||
 		in.ChannelName != notification.GetChannelName() ||
-		in.datadogAPIKey != notification.GetDatadogApiKey() ||
+		!secretEqualsAtlas(in.datadogAPIKey, notification.GetDatadogApiKey()) ||
 		in.DatadogRegion != notification.GetDatadogRegion() ||
 		!compare.PtrValuesEqual(in.DelayMin, notification.DelayMin) ||
 		in.EmailAddress != notification.GetEmailAddress() ||
 		!compare.PtrValuesEqual(in.EmailEnabled, notification.EmailEnabled) ||
 		in.IntervalMin != notification.GetIntervalMin() ||
 		in.MobileNumber != notification.GetMobileNumber() ||
-		in.opsGenieAPIKey != notification.GetOpsGenieApiKey() ||
+		!secretEqualsAtlas(in.opsGenieAPIKey, notification.GetOpsGenieApiKey()) ||
 		in.OpsGenieRegion != notification.GetOpsGenieRegion() ||
-		in.serviceKey != notification.GetServiceKey() ||
+		!secretEqualsAtlas(in.serviceKey, notification.GetServiceKey()) ||
 		!compare.PtrValuesEqual(in.SMSEnabled, notification.SmsEnabled) ||
 		in.TeamID != notification.GetTeamId() ||
 		in.TeamName != notification.GetTeamName() ||
 		in.TypeName != notification.GetTypeName() ||
 		in.Username != notification.GetUsername() ||
-		in.victorOpsAPIKey != notification.GetVictorOpsApiKey() ||
-		in.victorOpsRoutingKey != notification.GetVictorOpsRoutingKey() {
+		!secretEqualsAtlas(in.victorOpsAPIKey, notification.GetVictorOpsApiKey()) ||
+		!secretEqualsAtlas(in.victorOpsRoutingKey, notification.GetVictorOpsRoutingKey()) {
 		return false
 	}
 
