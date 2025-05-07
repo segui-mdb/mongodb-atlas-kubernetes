@@ -64,7 +64,7 @@ type ProductionAtlasDeployments struct {
 }
 
 func NewAtlasDeployments(clusterService admin.ClustersAPI, globalClusterAPI admin.GlobalClustersAPI, flexAPI admin.FlexClustersAPI, isGov bool) *ProductionAtlasDeployments {
-	return &ProductionAtlasDeployments{clustersAPI: clusterService, globalClusterAPI: globalClusterAPI, flexAPI: flexAPI, isGov: isGov}
+	return &ProductionAtlasDeployments{clustersAPI: clusterService, globalClusterAPI: globalClusterAPI, flexAPI: flexAPI, isGov: true}
 }
 
 func (ds *ProductionAtlasDeployments) ListDeploymentNames(ctx context.Context, projectID string) ([]string, error) {
