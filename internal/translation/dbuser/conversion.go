@@ -136,6 +136,10 @@ func fromAtlas(dbUser *admin.CloudDatabaseUser) (*User, error) {
 			X509Type:        dbUser.GetX509Type(),
 		},
 	}
+	if dbUser.GetLdapAuthType() == "GROUP" {
+		// IA-only hack until we can remove LDAP completely
+		u.DatabaseName = "$LDAP"
+	}
 	if err := normalize(u.AtlasDatabaseUserSpec); err != nil {
 		return nil, fmt.Errorf("failed to normalize spec from Atlas: %w", err)
 	}
@@ -150,7 +154,7 @@ func toAtlas(au *User) (*admin.CloudDatabaseUser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse deleteAfterDate value: %w", err)
 	}
-	return &admin.CloudDatabaseUser{
+	user := &admin.CloudDatabaseUser{
 		DatabaseName:    au.DatabaseName,
 		DeleteAfterDate: date,
 		X509Type:        pointer.MakePtrOrNil(au.X509Type),
@@ -163,7 +167,14 @@ func toAtlas(au *User) (*admin.CloudDatabaseUser, error) {
 		Username:        au.Username,
 		Password:        pointer.MakePtrOrNil(au.Password),
 		OidcAuthType:    pointer.MakePtrOrNil(au.OIDCAuthType),
-	}, nil
+	}
+	if au.DatabaseName == "$LDAP" {
+		// IA-only hack until we can remove LDAP completely
+		user.DatabaseName = "admin"
+		user.LdapAuthType = pointer.MakePtrOrNil("GROUP")
+	}
+
+	return user, nil
 }
 
 func dateToAtlas(d string) (*time.Time, error) {

@@ -45,6 +45,9 @@ func NewAtlasUsers(api admin.DatabaseUsersAPI) *AtlasUsers {
 }
 
 func (dus *AtlasUsers) Get(ctx context.Context, db, projectID, username string) (*User, error) {
+	if db == "$LDAP" {
+		db = "admin"
+	}
 	atlasDBUser, _, err := dus.usersAPI.GetDatabaseUser(ctx, projectID, db, username).Execute()
 	if err != nil {
 		if admin.IsErrorCode(err, atlas.UsernameNotFound) {
@@ -56,6 +59,9 @@ func (dus *AtlasUsers) Get(ctx context.Context, db, projectID, username string) 
 }
 
 func (dus *AtlasUsers) Delete(ctx context.Context, db, projectID, username string) error {
+	if db == "$LDAP" {
+		db = "admin"
+	}
 	_, err := dus.usersAPI.DeleteDatabaseUser(ctx, projectID, db, username).Execute()
 	if err != nil {
 		if admin.IsErrorCode(err, atlas.UserNotfound) {
@@ -80,6 +86,6 @@ func (dus *AtlasUsers) Update(ctx context.Context, au *User) error {
 	if err != nil {
 		return err
 	}
-	_, _, err = dus.usersAPI.UpdateDatabaseUser(ctx, au.ProjectID, au.DatabaseName, au.Username, u).Execute()
+	_, _, err = dus.usersAPI.UpdateDatabaseUser(ctx, au.ProjectID, u.DatabaseName, au.Username, u).Execute()
 	return err
 }
