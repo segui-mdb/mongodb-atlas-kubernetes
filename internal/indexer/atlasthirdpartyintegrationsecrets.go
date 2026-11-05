@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	akov2 "github.com/mongodb/mongodb-atlas-kubernetes/v2/api/v1"
+	integrations "github.com/mongodb/mongodb-atlas-kubernetes/v2/internal/controller/atlasthirdpartyintegrations"
 )
 
 const (
@@ -53,7 +54,22 @@ func (a *AtlasThirdPartyIntegrationBySecretsIndexer) Keys(object client.Object) 
 	if name == "" {
 		return nil
 	}
-	return []string{client.ObjectKey{Name: name, Namespace: tpi.Namespace}.String()}
+	/**** HACK HACK HACK HACK ****/
+	// This is a temporary patch to allow AKO to read cross
+	// namespace reference secrets for slack and prometheus since
+	// these are environment wide and live in the operator
+	// namespace as opposed to the integration namespace. We just
+	// read the data from the global secret but write the
+	// annotation into the namespaced secret.
+	// TODO(KUBE-656): clean this up once we have proper cross namespace references.
+	keys := []string{client.ObjectKey{Name: name, Namespace: tpi.Namespace}.String()}
+	if tpi.Spec.Type == "PROMETHEUS" || tpi.Spec.Type == "SLACK" {
+		globalName := name
+		secretNs := tpi.Namespace
+		integrations.OverridePromSlackSecret(tpi, &globalName, &secretNs)
+		keys = append(keys, client.ObjectKey{Name: globalName, Namespace: secretNs}.String())
+	}
+	return keys
 }
 
 func keyName(tpi *akov2.AtlasThirdPartyIntegration) string {

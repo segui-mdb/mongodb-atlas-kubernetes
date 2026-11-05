@@ -30,16 +30,41 @@ import (
 	"github.com/mongodb/mongodb-atlas-kubernetes/v2/internal/translation/thirdpartyintegration"
 )
 
+func OverridePromSlackSecret(integration *akov2.AtlasThirdPartyIntegration, secretName, secretNs *string) {
+	if integration.Spec.Type == "PROMETHEUS" || integration.Spec.Type == "SLACK" {
+		if env, found := integration.GetObjectMeta().GetAnnotations()["mongodb.com/internal-atlas-environment"]; found {
+			*secretNs = fmt.Sprintf("mongodb-atlas-system-%s", env)
+			if integration.Spec.Type == "PROMETHEUS" {
+				*secretName = "ia-prometheus-password"
+			}
+			if integration.Spec.Type == "SLACK" {
+				*secretName = "ia-slack-api-token"
+			}
+		}
+	}
+}
+
 func (h *AtlasThirdPartyIntegrationHandler) secretChanged(ctx context.Context, integration *akov2.AtlasThirdPartyIntegration) (bool, error) {
 	secretName, err := secretName(integration) // at this point the secret should have filed at populateIntegration
 	if err != nil {
 		return false, fmt.Errorf("failed to check for secret changes: %w", err)
 	}
-	secret, err := fetchSecret(ctx, h.Client, secretName, integration.Namespace)
+	/**** HACK HACK HACK HACK ****/
+	// This is a temporary patch to allow AKO to read cross
+	// namespace reference secrets for slack and prometheus since
+	// these are environment wide and live in the operator
+	// namespace as opposed to the integration namespace. We just
+	// read the data from the global secret but write the
+	// annotation into the namespaced secret.
+	// TODO(KUBE-656): clean this up once we have proper cross namespace references.
+	secretNs := integration.Namespace
+	secret, err := fetchSecret(ctx, h.Client, secretName, secretNs)
+	overridePromSlackSecret(integration, &secretName, &secretNs)
+	realSecret, err := fetchSecret(ctx, h.Client, secretName, secretNs)
 	if err != nil {
 		return false, fmt.Errorf("failed to retrieve secret %s to evaluate changes: %w", secretName, err)
 	}
-	currentValue := hashSecret(secret.Data)
+	currentValue := hashSecret(realSecret.Data)
 	if v, ok := secret.GetAnnotations()[AnnotationContentHash]; ok {
 		if v == currentValue {
 			return false, nil
@@ -77,7 +102,15 @@ func fetchIntegrationSecrets(ctx context.Context, kubeClient client.Client, inte
 	if err != nil {
 		return nil, fmt.Errorf("failed to solve integration secret name: %w", err)
 	}
-	return fetchSecretData(ctx, kubeClient, name, integration.Namespace)
+	/**** HACK HACK HACK HACK ****/
+	// This is a temporary patch to allow AKO to read cross namespace
+	// reference secrets for slack and prometheus since these are
+	// environment wide and live in the operator namespace as
+	// opposed to the integration namespace.
+	// TODO(KUBE-656): clean this up once we have proper cross namespace references.
+	secretNs := integration.Namespace
+	overridePromSlackSecret(integration, &name, &secretNs)
+	return fetchSecretData(ctx, kubeClient, name, secretNs)
 }
 
 func secretName(integration *akov2.AtlasThirdPartyIntegration) (string, error) {
